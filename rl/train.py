@@ -75,14 +75,18 @@ def make_env(task: str, difficulty: str, render_images: bool, seed: int):
 
 
 def build_vec_env(args):
-    # make_vec_env() reuses a single env_fn across workers; we want distinct seeds
-    # (and thus distinct cached structural models, see envs/assembly_env.py) per
-    # worker, so build the VecEnv directly instead.
-    from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
+    import stable_baselines3.common.vec_env
     env_fns = [make_env(args.task, args.difficulty, True, seed=i) for i in range(args.n_envs)]
-    vec_cls = DummyVecEnv if args.n_envs == 1 else SubprocVecEnv
-    vec_env = vec_cls(env_fns)
-    vec_env = VecTransposeImage(vec_env)  # HWC -> CHW for the image sub-space
+    if args.n_envs == 1:
+        vec_env = stable_baselines3.common.vec_env.DummyVecEnv(env_fns)
+    else:
+        # "fork" (Linux's default) duplicates the parent's already-loaded GPU/EGL
+        # driver state into each child, which crashes those children before they
+        # can respond -- surfacing here as SubprocVecEnv's handshake failing with
+        # ConnectionResetError. "spawn" starts each worker as a genuinely fresh
+        # interpreter instead, avoiding the inherited GPU state.
+        vec_env = stable_baselines3.common.vec_env.SubprocVecEnv(env_fns, start_method="spawn")
+    vec_env = VecTransposeImage(vec_env)
     return vec_env
 
 
