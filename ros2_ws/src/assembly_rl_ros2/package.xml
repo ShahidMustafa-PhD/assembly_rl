@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>assembly_rl_ros2</name>
+  <version>0.1.0</version>
+  <description>
+    Perception -> policy -> actuation ROS2 architecture for the vision-guided
+    assembly-RL project. Wraps the same trained SAC/PPO policy (rl/) and the
+    same Pinocchio-based Cartesian impedance controller (control/) used in
+    MuJoCo simulation, so this package is the sim-to-real deployment path,
+    not a reimplementation -- see README.md "Sim-to-real reuse".
+  </description>
+  <maintainer email="shahid.pieas@gmail.com">Shahid Mustafa</maintainer>
+  <license>MIT</license>
+
+  <depend>rclpy</depend>
+  <depend>sensor_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>std_srvs</depend>
+  <depend>cv_bridge</depend>
+  <!-- Real-hardware target: ros2_control-based UR driver, e.g.
+       Universal_Robots_ROS2_Driver / ur_robot_driver, exposing a
+       forward_position_controller or an effort/torque interface.
+       Left as an exec_depend (not required to build/lint this package). -->
+  <exec_depend>ur_robot_driver</exec_depend>
+  <exec_depend>controller_manager</exec_depend>
+
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

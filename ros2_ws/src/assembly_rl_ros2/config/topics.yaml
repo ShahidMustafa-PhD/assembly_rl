@@ -1,0 +1,21 @@
+# Topic/frame names used across the three nodes -- centralized here for reference;
+# the nodes currently hardcode these constants at the top of each file (see the
+# node docstrings) rather than reading this file, so treat this as documentation
+# of the wiring, not live config, unless you wire it into the nodes via ROS params.
+
+perception_node:
+  input_image_topic: /camera/wrist/image_raw   # from your wrist-camera driver
+  output_image_topic: /assembly/obs/image
+  target_size: 84                              # must match envs/assembly_env.py
+
+policy_node:
+  joint_state_topic: /joint_states              # from ur_robot_driver / ros2_control
+  wrench_topic: /wrench                          # from the UR5e's built-in F/T or an external sensor
+  target_pose_topic: /assembly/policy/target_pose
+  base_frame: base_link
+  policy_hz: 20.0
+
+impedance_controller_node:
+  torque_command_topic: /forward_effort_controller/commands  # ros2_control effort interface
+  control_hz: 250.0
+  torque_limits_nm: [150.0, 150.0, 150.0, 28.0, 28.0, 28.0]

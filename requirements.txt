@@ -1,0 +1,14 @@
+# Core simulation & kinematics
+mujoco>=3.1
+pin>=2.7                    # Pinocchio (pip package name is "pin")
+example-robot-data>=4.0     # not required at runtime; used once to source the UR5 URDF (see README)
+
+# RL
+gymnasium>=0.29
+stable-baselines3>=2.2
+torch>=2.1
+tensorboard>=2.15
+
+# Misc
+numpy>=1.26,<2.3
+Pillow
