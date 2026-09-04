@@ -6,7 +6,15 @@ example-robot-data>=4.0     # not required at runtime; used once to source the U
 # RL
 gymnasium>=0.29
 stable-baselines3>=2.2
-torch>=2.1
+# torch is intentionally NOT listed here -- install it FIRST, from the wheel
+# index matching your CUDA/driver (see README "Setup"), before this file.
+# A bare `pip install torch` resolves to whatever CUDA build is newest on
+# PyPI (currently cu13, needing driver >=580), which silently fails with
+# "CUDA error: no kernel image is available for execution on the device" /
+# a driver-too-old error on hardware with an older driver -- Colab's T4
+# runtime included. stable-baselines3>=2.2 requires torch>=2.8,<3.0, so
+# install any torch in that range from the CUDA build matching your
+# driver and pip will leave it alone.
 tensorboard>=2.15
 
 # Misc

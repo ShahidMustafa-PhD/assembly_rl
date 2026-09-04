@@ -49,7 +49,27 @@ Pinocchio stack) into contact-rich manipulation RL.
 
 ## Setup
 
+Install torch **first**, from the wheel index matching your hardware --
+a bare `pip install torch` resolves to whatever CUDA build is newest on
+PyPI (currently CUDA 13, requiring driver >=580), which fails with
+`CUDA error: no kernel image is available for execution on the device`
+or a driver-too-old error on anything with an older driver. `torch` is
+deliberately left out of `requirements.txt` for this reason --
+`stable-baselines3>=2.2` needs `torch>=2.8,<3.0`, and CUDA 12.6 wheels
+cover that range while needing only driver >=560.28 (broadly available,
+including Colab's T4 runtime):
+
 ```bash
+# NVIDIA GPU (check your driver first: `nvidia-smi` -- if it reports
+# driver <560, either update it or use an older CUDA index/torch combo):
+pip install torch==2.8.0 --index-url https://download.pytorch.org/whl/cu126
+
+# No GPU / CPU only:
+pip install torch==2.8.0 --index-url https://download.pytorch.org/whl/cpu
+
+# Verify before moving on:
+python3 -c "import torch; print(torch.__version__, torch.cuda.is_available())"
+
 pip install -r requirements.txt
 ```
 
@@ -72,6 +92,75 @@ xacro urdf/ur.urdf.xacro ur_type:=ur5e name:=ur5e -o ur5e.urdf
 MuJoCo needs a headless GL backend in a container/CI (no display): run
 everything with `MUJOCO_GL=egl` in the environment (already the default
 assumption throughout this README and in `envs/assembly_env.py`).
+
+## Google Colab (GPU runtime)
+
+Use a GPU runtime (Runtime -> Change runtime type -> GPU) -- MuJoCo's
+`MUJOCO_GL=egl` headless rendering needs an actual GPU/EGL device, and
+stable-baselines3 has no TPU/XLA backend, so a TPU runtime cannot run this
+regardless of `--device`.
+
+```python
+from google.colab import drive
+drive.mount('/content/drive')
+
+!git clone https://github.com/ShahidMustafa-PhD/assembly_rl.git /content/assembly_rl
+%cd /content/assembly_rl
+
+# Colab's GPU image ships the NVIDIA driver but not the EGL ICD vendor file
+# MuJoCo's MUJOCO_GL=egl needs to find it -- without this you get
+# "Cannot initialize EGL" / "an OpenGL platform library has not been loaded".
+!mkdir -p /usr/share/glvnd/egl_vendor.d
+!echo '{"file_format_version":"1.0.0","ICD":{"library_path":"libEGL_nvidia.so.0"}}' \
+    > /usr/share/glvnd/egl_vendor.d/10_nvidia.json
+
+!nvidia-smi -L   # confirm the GPU runtime actually attached (T4)
+
+# Install torch FIRST, pinned to a CUDA 12.6 wheel -- plain `pip install
+# torch` (or letting requirements.txt pull it in transitively) resolves to
+# the newest PyPI build, currently CUDA 13 (needs driver >=580), which is
+# newer than what Colab's T4 runtime typically ships and fails with a
+# driver-mismatch/"no kernel image" CUDA error at training time, not at
+# install time -- this is the error that kept recurring. cu126 satisfies
+# stable-baselines3's torch>=2.8,<3.0 floor while only needing driver >=560.
+!pip install -q torch==2.8.0 --index-url https://download.pytorch.org/whl/cu126
+!python3 -c "import torch; assert torch.cuda.is_available(), 'CUDA not available -- check nvidia-smi driver version above against https://docs.nvidia.com/deploy/cuda-compatibility/'; print('torch', torch.__version__, '| CUDA OK:', torch.cuda.get_device_name(0))"
+
+!pip install -q -r requirements.txt
+
+!mkdir -p /content/drive/MyDrive/assembly_rl_runs
+!MUJOCO_GL=egl python3 scripts/smoke_test.py   # ~3s end-to-end sanity check first
+
+!MUJOCO_GL=egl python3 -m rl.train --algo sac --task peg_in_hole --difficulty loose \
+    --timesteps 500000 --n_envs 2 --logdir /content/drive/MyDrive/assembly_rl_runs/sac_loose \
+    --curriculum --device cuda
+```
+
+Notes:
+- If the `torch.cuda.is_available()` assert fails: `nvidia-smi -L` still
+  showing a T4 means the runtime attached fine, so the problem is the
+  driver being older than CUDA 12.6 needs (<560). First try
+  Runtime -> Disconnect and delete runtime, then reconnect -- this
+  usually reprovisions a newer driver. If it's still too old, drop the
+  torch install to `--index-url https://download.pytorch.org/whl/cu121`
+  (needs only driver >=530), but that index doesn't publish a torch
+  >=2.8, which `stable-baselines3>=2.2` requires -- so you'd also need to
+  pin an older `stable-baselines3` compatible with a torch<2.8 (check
+  https://pypi.org/project/stable-baselines3/#history for a version whose
+  own `torch` requirement matches what cu121 offers before relying on
+  this path).
+- `--n_envs 2` matches Colab's usual 2-core CPU allocation for the free
+  tier (env stepping is CPU-bound, per "Training budget" below) -- raise it
+  if you're on a Colab Pro/Pro+ instance with more cores.
+- `--device cuda` is pinned explicitly here (rather than left at the
+  `auto` default) so a run fails fast if the GPU runtime didn't actually
+  attach, instead of silently falling back to CPU.
+- Checkpoints/tensorboard logs go straight to Drive (`--logdir`) so they
+  survive a Colab disconnect; re-running the same cell after a disconnect
+  does *not* resume from the last checkpoint -- `model.learn()` in
+  `rl/train.py` always starts fresh, so load the latest `*.zip` from
+  `--logdir` with `SAC.load(...)`/`PPO.load(...)` if you need to continue
+  a run.
 
 ## Quick start
 
