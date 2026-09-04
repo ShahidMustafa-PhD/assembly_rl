@@ -106,9 +106,9 @@ def main():
     vec_env = build_vec_env(args)
 
     common_kwargs = dict(
-        policy="MultiInputPolicy", env=vec_env, policy_kwargs=POLICY_KWARGS,
-        verbose=1, tensorboard_log=args.logdir, seed=args.seed, device="cpu",
-    )
+    policy="MultiInputPolicy", env=vec_env, policy_kwargs=POLICY_KWARGS,
+    verbose=1, tensorboard_log=args.logdir, seed=args.seed, device=args.device,
+)
     if args.algo == "sac":
         model = SAC(buffer_size=100_000, batch_size=256, learning_starts=1_000,
                      train_freq=1, gradient_steps=1, learning_rate=3e-4, **common_kwargs)
