@@ -100,6 +100,7 @@ def main():
     p.add_argument("--logdir", default="runs/default")
     p.add_argument("--curriculum", action="store_true")
     p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--device", default="auto", choices=["auto", "cpu", "cuda"])
     args = p.parse_args()
 
     Path(args.logdir).mkdir(parents=True, exist_ok=True)
